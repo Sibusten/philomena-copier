@@ -209,6 +209,8 @@ namespace PhilomenaCopier {
                     searchImages = await GetSearchQueryImages(wc, sourceBooru, sourceApiKey, searchQuery, currentPage);
                 }
             }
+
+            Console.WriteLine("Complete!");
         }
     }
 }
