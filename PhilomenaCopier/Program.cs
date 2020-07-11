@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json;
-using SemVersion;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,7 +9,12 @@ using System.Threading.Tasks;
 
 namespace PhilomenaCopier {
     public class Program {
-        public static readonly SemanticVersion Version = new SemanticVersion(1, 0, 0);
+        public static string Version {
+            get {
+                Version version = typeof(Program).Assembly.GetName().Version;
+                return $"{version.Major}.{version.Minor}.{version.Build}";
+            }
+        }
 
         // Matches a domain, ignoring "http"/"https" and trailing "/"
         private const string DomainPattern = @"^(?:https?:\/\/)?(.+?\..+?)\/?$$";
