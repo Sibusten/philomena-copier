@@ -112,6 +112,7 @@ namespace PhilomenaCopier {
             Console.WriteLine($"Philomena Copier v{Version}");
             Console.WriteLine();
             Console.WriteLine("Ensure your filters are set correctly on the source booru. The active filter will be used when copying images.");
+            Console.WriteLine("API keys can be found on the Account page.");
             Console.WriteLine();
 
             // Get booru info
