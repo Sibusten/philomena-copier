@@ -31,27 +31,27 @@ namespace PhilomenaCopier {
         private const string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0";
 
         private class Image {
-            public string description;
-            public string source_url;
-            public List<string> tags;
-            public string view_url;
-            public int id;
+            public string description { get; set; }
+            public string source_url { get; set; }
+            public List<string> tags { get; set; }
+            public string view_url { get; set; }
+            public int id { get; set; }
         }
 
         private class SearchQueryImages {
-            public List<Image> images;
-            public int total;
+            public List<Image> images { get; set; }
+            public int total { get; set; }
         }
 
         private class UploadImageInfo {
-            public string description;
-            public string tag_input;
-            public string source_url;
+            public string description { get; set; }
+            public string tag_input { get; set; }
+            public string source_url { get; set; }
         }
 
         private class UploadImageBody {
-            public UploadImageInfo image;
-            public string url;
+            public UploadImageInfo image { get; set; }
+            public string url { get; set; }
         }
 
         private static string GetSearchQueryUrl(string booru, string apiKey, string query, int page) {
