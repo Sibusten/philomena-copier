@@ -54,6 +54,12 @@ namespace PhilomenaCopier {
             public string url { get; set; }
         }
 
+        private enum PostStatus {
+            Success,
+            Duplicate,
+            Failure,
+        }
+
         private static string GetSearchQueryUrl(string booru, string apiKey, string query, int page) {
             return $"https://{booru}/api/v1/json/search/images?key={apiKey}&page={page}&per_page={PerPage}&q={query}&sf=created_at&sd=asc";
         }
@@ -86,7 +92,7 @@ namespace PhilomenaCopier {
             return JsonConvert.DeserializeObject<SearchQueryImages>(searchJson);
         }
 
-        private static async Task UploadImage(WebClient wc, Image image, string booru, string apiKey) {
+        private static async Task<PostStatus> UploadImage(WebClient wc, Image image, string booru, string apiKey) {
             // Set required headers
             wc.Headers["User-Agent"] = UserAgent;
             wc.Headers["Content-Type"] = "application/json";
@@ -110,7 +116,36 @@ namespace PhilomenaCopier {
             };
             string uploadImageString = JsonConvert.SerializeObject(uploadImageBody);
 
-            await wc.UploadDataTaskAsync(uploadUrl, Encoding.UTF8.GetBytes(uploadImageString));
+            try {
+                await wc.UploadDataTaskAsync(uploadUrl, Encoding.UTF8.GetBytes(uploadImageString));
+
+                return PostStatus.Success;
+            }
+            catch (WebException ex) {
+                if (ex.Status == WebExceptionStatus.ProtocolError) {
+                    HttpWebResponse response = ex.Response as HttpWebResponse;
+                    if (response != null) {
+                        if (response.StatusCode == HttpStatusCode.BadRequest) {  // Already uploaded (duplicate hash)
+                            Console.WriteLine("Image has already been uploaded");
+                            return PostStatus.Duplicate;
+                        }
+                        else {
+                            // Other http status code
+                            Console.WriteLine($"Error uploading image ({response.StatusCode})");
+                        }
+                    }
+                    else {
+                        // no http status code available
+                        Console.WriteLine("Error uploading image (Unknown error)");
+                    }
+                }
+                else {
+                    // no http status code available
+                    Console.WriteLine("Error uploading image (Unknown error)");
+                }
+            }
+
+            return PostStatus.Failure;
         }
 
         public static async Task Main(string[] args) {
@@ -158,37 +193,10 @@ namespace PhilomenaCopier {
                         bool success = false;
 
                         while (!success) {
-                            try {
-                                Console.WriteLine($"Uploading image {currentImage}/{searchImages.total} ({image.id})...");
-                                await UploadImage(wc, image, targetBooru, targetApiKey);
+                            Console.WriteLine($"Uploading image {currentImage}/{searchImages.total} ({image.id})...");
+                            PostStatus status = await UploadImage(wc, image, targetBooru, targetApiKey);
 
-                                success = true;
-                            }
-                            catch (WebException ex) {
-                                if (ex.Status == WebExceptionStatus.ProtocolError) {
-                                    HttpWebResponse response = ex.Response as HttpWebResponse;
-                                    if (response != null) {
-                                        if (response.StatusCode == HttpStatusCode.BadRequest) {  // Already uploaded (duplicate hash)
-                                            Console.WriteLine("Image has already been uploaded");
-                                            success = true;
-                                        }
-                                        else {
-                                            // Other http status code
-                                            Console.WriteLine($"Error uploading image ({response.StatusCode})");
-                                        }
-                                    }
-                                    else {
-                                        // no http status code available
-                                        Console.WriteLine("Error uploading image (Unknown error)");
-                                    }
-                                }
-                                else {
-                                    // no http status code available
-                                    Console.WriteLine("Error uploading image (Unknown error)");
-                                }
-                            }
-
-                            if (!success) {
+                            if (status == PostStatus.Failure) {
                                 // Exponential backoff to prevent overloading server
                                 Console.WriteLine($"Retrying in {currentRetryDelay.TotalSeconds} seconds...");
                                 await Task.Delay(currentRetryDelay);
@@ -197,6 +205,10 @@ namespace PhilomenaCopier {
                                 if (currentRetryDelay < MaxRetryDelay) {
                                     currentRetryDelay *= 2;
                                 }
+                            }
+                            else {
+                                // Move to the next image
+                                success = true;
                             }
                         }
 
