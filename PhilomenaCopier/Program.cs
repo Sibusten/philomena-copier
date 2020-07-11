@@ -87,8 +87,6 @@ namespace PhilomenaCopier {
             wc.Headers["User-Agent"] = UserAgent;
             wc.Headers["Content-Type"] = "application/json";
 
-            WebHeaderCollection x = wc.Headers;
-
             string uploadUrl = GetUploadImageUrl(booru, apiKey);
 
             // Format the tags into a comma-separated string
