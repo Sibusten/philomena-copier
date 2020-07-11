@@ -20,6 +20,9 @@ namespace PhilomenaCopier {
 
         private const int PerPage = 50;
 
+        private static readonly TimeSpan InitialRetryDelay = TimeSpan.FromSeconds(4);
+        private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(1024);  // 17 minutes and 4 seconds
+
         // A browser user agent
         private const string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0";
 
@@ -143,43 +146,62 @@ namespace PhilomenaCopier {
 
                 // Upload all images
                 int currentImage = 1;
+                TimeSpan currentRetryDelay;
                 while (searchImages.total > 0) {
                     // Upload the current page
                     foreach (Image image in searchImages.images) {
-                        try {
-                            Console.WriteLine($"Uploading image {currentImage}/{searchImages.total} ({image.id})...");
-                            await UploadImage(wc, image, targetBooru, targetApiKey);
-                        }
-                        catch (WebException ex) {
-                            if (ex.Status == WebExceptionStatus.ProtocolError) {
-                                HttpWebResponse response = ex.Response as HttpWebResponse;
-                                if (response != null) {
-                                    if (response.StatusCode == HttpStatusCode.BadRequest) {  // Already uploaded (duplicate hash)
-                                        Console.WriteLine("Image has already been uploaded");
+                        // Reset the retry delay
+                        currentRetryDelay = InitialRetryDelay;
+
+                        bool success = false;
+
+                        while (!success) {
+                            try {
+                                Console.WriteLine($"Uploading image {currentImage}/{searchImages.total} ({image.id})...");
+                                await UploadImage(wc, image, targetBooru, targetApiKey);
+
+                                success = true;
+                            }
+                            catch (WebException ex) {
+                                if (ex.Status == WebExceptionStatus.ProtocolError) {
+                                    HttpWebResponse response = ex.Response as HttpWebResponse;
+                                    if (response != null) {
+                                        if (response.StatusCode == HttpStatusCode.BadRequest) {  // Already uploaded (duplicate hash)
+                                            Console.WriteLine("Image has already been uploaded");
+                                            success = true;
+                                        }
+                                        else {
+                                            // Other http status code
+                                            Console.WriteLine($"Error uploading image ({response.StatusCode})");
+                                        }
                                     }
                                     else {
-                                        // Other http status code
-                                        Console.WriteLine($"Error uploading image ({response.StatusCode})");
-                                        return;
+                                        // no http status code available
+                                        Console.WriteLine("Error uploading image (Unknown error)");
                                     }
                                 }
                                 else {
                                     // no http status code available
                                     Console.WriteLine("Error uploading image (Unknown error)");
-                                    return;
                                 }
                             }
-                            else {
-                                // no http status code available
-                                Console.WriteLine("Error uploading image (Unknown error)");
-                                return;
+
+                            if (!success) {
+                                // Exponential backoff to prevent overloading server
+                                Console.WriteLine($"Retrying in {currentRetryDelay.TotalSeconds} seconds...");
+                                await Task.Delay(currentRetryDelay);
+
+                                // Double the delay for next time, if it is below the max
+                                if (currentRetryDelay < MaxRetryDelay) {
+                                    currentRetryDelay *= 2;
+                                }
                             }
                         }
 
                         currentImage++;
 
                         // Delay to prevent overloading servers
-                        await Task.Delay(TimeSpan.FromSeconds(5));
+                        await Task.Delay(InitialRetryDelay);
                     }
 
                     // Load the next page
