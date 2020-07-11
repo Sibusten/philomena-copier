@@ -19,8 +19,8 @@ namespace PhilomenaCopier {
         // Matches a domain, ignoring "http"/"https" and trailing "/"
         private const string DomainPattern = @"^(?:https?:\/\/)?(.+?\..+?)\/?$$";
 
-        // Matches a Philomena API Key. Alphanumeric, 20 characters long.
-        private const string ApiKeyPattern = @"^([a-zA-Z0-9]{20})$";
+        // Matches a Philomena API Key. 20 characters long.
+        private const string ApiKeyPattern = @"^(.{20})$";
 
         private const int PerPage = 50;
 
