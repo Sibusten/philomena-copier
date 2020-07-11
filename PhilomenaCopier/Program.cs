@@ -147,7 +147,7 @@ namespace PhilomenaCopier {
                 // Upload all images
                 int currentImage = 1;
                 TimeSpan currentRetryDelay;
-                while (searchImages.total > 0) {
+                while (searchImages.images.Count > 0) {
                     // Upload the current page
                     foreach (Image image in searchImages.images) {
                         // Reset the retry delay
